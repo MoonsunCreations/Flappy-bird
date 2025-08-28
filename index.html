@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Bird - Moonsun Creation</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(to bottom, #4facfe, #00f2fe);
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    #title {
+      position: absolute;
+      top: 15px;
+      font-size: 28px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 0 0 8px #ff00ff, 0 0 12px #00ffff;
+      font-family: "Comic Sans MS", cursive;
+      letter-spacing: 2px;
+    }
+    canvas {
+      background: #70c5ce;
+      border: 4px solid #000;
+      border-radius: 16px;
+      box-shadow: 0 0 25px rgba(0,0,0,0.6);
+    }
+  </style>
+</head>
+<body>
+  <div id="title">🌟 Moonsun Creation 🌟</div>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let frames = 0;
+    const DEGREE = Math.PI / 180;
+
+    // Load sprite
+    const sprite = new Image();
+    sprite.src = "https://i.ibb.co/4f7yJ2Q/flappy-bird-set.png";
+
+    // Game state
+    const state = {
+      current: 0,
+      getReady: 0,
+      game: 1,
+      over: 2
+    };
+
+    // Score
+    const score = {
+      value: 0,
+      best: 0,
+
+      draw: function(){
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "black";
+        if(state.current === state.game){
+          ctx.lineWidth = 2;
+          ctx.font = "35px Arial";
+          ctx.fillText(this.value, canvas.width/2, 50);
+          ctx.strokeText(this.value, canvas.width/2, 50);
+        } else if(state.current === state.over){
+          ctx.font = "25px Arial";
+          ctx.fillText("Score: " + this.value, canvas.width/2 - 60, canvas.height/2 - 20);
+          ctx.strokeText("Score: " + this.value, canvas.width/2 - 60, canvas.height/2 - 20);
+
+          ctx.fillText("Best: " + this.best, canvas.width/2 - 60, canvas.height/2 + 20);
+          ctx.strokeText("Best: " + this.best, canvas.width/2 - 60, canvas.height/2 + 20);
+        }
+      },
+
+      reset: function(){
+        this.value = 0;
+      }
+    };
+
+    canvas.addEventListener("click", function(){
+      switch(state.current){
+        case state.getReady:
+          state.current = state.game;
+          break;
+        case state.game:
+          bird.flap();
+          break;
+        case state.over:
+          pipes.reset();
+          bird.reset();
+          score.reset();
+          state.current = state.getReady;
+          break;
+      }
+    });
+
+    // Bird
+    const bird = {
+      animation: [
+        {sX: 276, sY: 112},
+        {sX: 276, sY: 139},
+        {sX: 276, sY: 164},
+        {sX: 276, sY: 139}
+      ],
+      x: 50,
+      y: 150,
+      w: 34,
+      h: 26,
+
+      frame: 0,
+      gravity: 0.25,
+      jump: 4.6,
+      speed: 0,
+      rotation: 0,
+
+      draw: function(){
+        let birdFrame = this.animation[this.frame];
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.drawImage(sprite, birdFrame.sX, birdFrame.sY, this.w, this.h, -this.w/2, -this.h/2, this.w, this.h);
+        ctx.restore();
+      },
+
+      flap: function(){
+        this.speed = -this.jump;
+      },
+
+      update: function(){
+        // Frame
+        this.period = state.current === state.getReady ? 10 : 5;
+        this.frame += frames % this.period === 0 ? 1 : 0;
+        this.frame = this.frame % this.animation.length;
+
+        if(state.current === state.getReady){
+          this.y = 150; 
+          this.rotation = 0 * DEGREE;
+        } else {
+          this.speed += this.gravity;
+          this.y += this.speed;
+
+          if(this.y + this.h/2 >= canvas.height){
+            this.y = canvas.height - this.h/2;
+            if(state.current === state.game){
+              state.current = state.over;
+            }
+          }
+
+          if(this.speed >= this.jump){
+            this.rotation = 90 * DEGREE;
+          } else {
+            this.rotation = -25 * DEGREE;
+          }
+        }
+      },
+
+      reset: function(){
+        this.speed = 0;
+        this.y = 150;
+      }
+    };
+
+    // Pipes
+    const pipes = {
+      position: [],
+      top: { sX: 553, sY: 0 },
+      bottom: { sX: 502, sY: 0 },
+      w: 53,
+      h: 400,
+      gap: 110,
+      maxYPos: -150,
+
+      draw: function(){
+        for(let i=0; i<this.position.length; i++){
+          let p = this.position[i];
+
+          let topYPos = p.y;
+          let bottomYPos = p.y + this.h + this.gap;
+
+          ctx.drawImage(sprite, this.top.sX, this.top.sY, this.w, this.h, p.x, topYPos, this.w, this.h);
+          ctx.drawImage(sprite, this.bottom.sX, this.bottom.sY, this.w, this.h, p.x, bottomYPos, this.w, this.h);
+        }
+      },
+
+      update: function(){
+        if(state.current !== state.game) return;
+
+        if(frames % 100 === 0){
+          this.position.push({
+            x: canvas.width,
+            y: this.maxYPos * (Math.random() + 1)
+          });
+        }
+
+        for(let i=0; i<this.position.length; i++){
+          let p = this.position[i];
+          p.x -= 2;
+
+          if(p.x + this.w <= 0){
+            this.position.shift();
+            score.value += 1;
+            score.best = Math.max(score.best, score.value);
+          }
+
+          // Collision
+          let bottomPipeY = p.y + this.h + this.gap;
+          if(bird.x + bird.w/2 > p.x && bird.x - bird.w/2 < p.x + this.w &&
+             (bird.y - bird.h/2 < p.y + this.h || bird.y + bird.h/2 > bottomPipeY)){
+              state.current = state.over;
+          }
+        }
+      },
+
+      reset: function(){
+        this.position = [];
+      }
+    };
+
+    // Draw
+    function draw(){
+      ctx.fillStyle = "#70c5ce";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      pipes.draw();
+      bird.draw();
+      score.draw();
+
+      if(state.current === state.getReady){
+        ctx.fillStyle = "#000";
+        ctx.font = "24px Arial";
+        ctx.fillText("Tap to Start", 120, 250);
+      }
+      if(state.current === state.over){
+        ctx.fillStyle = "red";
+        ctx.font = "30px Arial";
+        ctx.fillText("Game Over", 120, 250);
+        ctx.font = "20px Arial";
+        ctx.fillText("Tap to Restart", 120, 300);
+      }
+    }
+
+    // Update
+    function update(){
+      bird.update();
+      pipes.update();
+    }
+
+    // Loop
+    function loop(){
+      update();
+      draw();
+      frames++;
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>
